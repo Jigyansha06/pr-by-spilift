@@ -279,7 +279,6 @@ section h2 em, h1 em{ font-style:normal; color:var(--gray); }
   position:relative; min-height:100vh;
   display:flex; flex-direction:column; justify-content:center;
   padding: 140px var(--gutter) 80px;
-  overflow:hidden;
 }
 .hero-bg{ position:absolute; inset:0; z-index:0; }
 .hero-bg-grid{
