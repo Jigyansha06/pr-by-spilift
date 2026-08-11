@@ -64,20 +64,28 @@
     const nav = document.getElementById('nav');
     if (!nav) return;
     let lastY = window.scrollY;
+    const hideThreshold = () => window.innerHeight * 0.9; // don't hide until past the hero
+    const jitterGuard = 6; // ignore sub-pixel/momentum noise so nav doesn't flicker
 
     ScrollTrigger.create({
       start: 0,
       end: 'max',
       onUpdate: (self) => {
         const y = window.scrollY;
+        const delta = y - lastY;
         nav.classList.toggle('nav--scrolled', y > 40);
 
-        if (self.direction === 1 && y > 160) {
-          nav.classList.add('nav--hidden');
-        } else if (self.direction === -1) {
-          nav.classList.remove('nav--hidden');
+        if (Math.abs(delta) > jitterGuard) {
+          if (delta > 0 && y > hideThreshold()) {
+            nav.classList.add('nav--hidden');
+          } else if (delta < 0) {
+            nav.classList.remove('nav--hidden');
+          }
+          lastY = y;
         }
-        lastY = y;
+
+        // Always show near the very top, regardless of direction noise
+        if (y < 40) nav.classList.remove('nav--hidden');
       }
     });
   }
