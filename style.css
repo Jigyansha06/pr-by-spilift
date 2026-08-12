@@ -4252,3 +4252,155 @@ main > section:not(#home){
   }
 
 }
+/* =========================================================
+   MOBILE NAVIGATION FIX
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  /* Navigation container */
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    padding: 12px 16px;
+  }
+
+  /* Navigation pill */
+  .nav-inner {
+    width: 100%;
+    padding: 9px 12px 9px 16px;
+    gap: 10px;
+  }
+
+  /* Logo */
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .nav-logo-mark {
+    max-width: 32px;
+    max-height: 32px;
+  }
+
+  .nav-logo-prefix {
+    font-size: 11px;
+  }
+
+  /* Hide desktop navigation */
+  .nav-links {
+    display: none;
+  }
+
+  /* Hide desktop CTA */
+  .btn--nav {
+    display: none;
+  }
+
+  /* SHOW hamburger */
+  .hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    position: relative;
+    z-index: 1201;
+    flex-shrink: 0;
+  }
+
+  .hamburger span {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    height: 2px;
+    background: var(--paper);
+    border-radius: 2px;
+  }
+
+  .hamburger span:nth-child(1) {
+    top: 11px;
+  }
+
+  .hamburger span:nth-child(2) {
+    bottom: 11px;
+  }
+
+  /* Hamburger → X */
+  .hamburger[aria-expanded="true"] span:nth-child(1) {
+    top: 17px;
+    transform: rotate(45deg);
+  }
+
+  .hamburger[aria-expanded="true"] span:nth-child(2) {
+    bottom: 17px;
+    transform: rotate(-45deg);
+  }
+
+  /* Mobile menu */
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+
+    display: flex;
+    flex-direction: column;
+
+    background: var(--black);
+
+    padding: 110px 24px 40px;
+
+    clip-path: circle(
+      2% at calc(100% - 38px) 38px
+    );
+
+    pointer-events: none;
+  }
+
+  .mobile-menu.is-open {
+    clip-path: circle(
+      150% at calc(100% - 38px) 38px
+    );
+
+    pointer-events: auto;
+  }
+
+  .mobile-menu nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mobile-menu nav a {
+    display: block;
+    padding: 10px 0;
+
+    font-family: var(--font-display);
+    font-size: clamp(32px, 10vw, 48px);
+    font-weight: 600;
+    color: var(--paper);
+  }
+
+  .mobile-menu nav a span {
+    display: inline-block;
+    transform: translateY(110%);
+  }
+
+  .mobile-menu.is-open nav a span {
+    transform: translateY(0);
+    transition: transform 0.6s var(--ease);
+  }
+
+  .mobile-menu-footer {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--gray);
+  }
+}
