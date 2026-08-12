@@ -86,6 +86,7 @@ window.PRAnimations = (function () {
 
   function simpleReveals() {
     document.querySelectorAll('[data-reveal]').forEach((el) => {
+      if (el.closest('.hero')) return; // already handled by heroIntro()
       gsap.set(el, { opacity: 0, y: 24 });
       ScrollTrigger.create({
         trigger: el,
@@ -123,22 +124,9 @@ window.PRAnimations = (function () {
      SERVICES — accordion rows
      --------------------------------------------------------------------- */
   function servicesAccordion() {
-    // Desktop reveals the description on hover (CSS-only). On touch devices
-    // hover doesn't fire, so tapping toggles an .is-open class instead.
-    const cells = document.querySelectorAll('.service-cell');
-    cells.forEach((cell) => {
-      cell.addEventListener('click', () => {
-        if (!isMobile()) return;
-        cells.forEach((c) => c !== cell && c.classList.remove('is-open'));
-        cell.classList.toggle('is-open');
-      });
-      cell.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          cells.forEach((c) => c !== cell && c.classList.remove('is-open'));
-          cell.classList.toggle('is-open');
-        }
-      });
+    // Description reveal is CSS-only: hover on desktop, always-visible on
+    // touch devices (see responsive.css). Only the entrance reveal is JS-driven.
+    document.querySelectorAll('.service-cell').forEach((cell) => {
       gsap.set(cell, { opacity: 0, y: 20 });
       ScrollTrigger.create({
         trigger: cell, start: 'top 94%',
@@ -169,17 +157,22 @@ window.PRAnimations = (function () {
      PROCESS — horizontal scroll driven by vertical scroll (desktop only)
      --------------------------------------------------------------------- */
   function processSection() {
-    const track = document.querySelector('.process-track');
+    const track = document.getElementById('process-track');
     const pin = document.querySelector('.process-pin');
+    const fill = document.getElementById('process-progress-fill');
+    const steps = document.querySelectorAll('.process-step');
     if (!track || !pin) return;
 
     if (isMobile()) {
       gsap.set(track, { x: 0 });
-      document.querySelectorAll('.process-step').forEach((step) => {
+      steps.forEach((step, i) => {
         gsap.set(step, { opacity: 0, y: 24 });
         ScrollTrigger.create({
-          trigger: step, start: 'top 90%',
-          onEnter: () => gsap.to(step, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }),
+          trigger: step, start: 'top 85%',
+          onEnter: () => {
+            gsap.to(step, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' });
+            step.classList.add('is-active');
+          },
           once: true
         });
       });
@@ -188,7 +181,7 @@ window.PRAnimations = (function () {
 
     const getScrollAmount = () => track.scrollWidth - pin.clientWidth;
 
-    let tween = gsap.to(track, {
+    gsap.to(track, {
       x: () => -getScrollAmount(),
       ease: 'none',
       scrollTrigger: {
@@ -197,9 +190,20 @@ window.PRAnimations = (function () {
         end: () => `+=${getScrollAmount() + window.innerHeight}`,
         pin: true,
         scrub: 0.6,
-        invalidateOnRefresh: true
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          if (fill) fill.style.width = `${self.progress * 100}%`;
+          const activeIndex = Math.min(
+            steps.length - 1,
+            Math.floor(self.progress * steps.length)
+          );
+          steps.forEach((s, i) => s.classList.toggle('is-active', i === activeIndex));
+        }
       }
     });
+
+    // Highlight the first step by default before any scroll happens
+    if (steps[0]) steps[0].classList.add('is-active');
   }
 
   /* ---------------------------------------------------------------------
@@ -217,14 +221,25 @@ window.PRAnimations = (function () {
   }
 
   /* ---------------------------------------------------------------------
-     CASE STUDIES — panel reveal + image scale on hover
+     FEATURED MEDIA COVERAGE — gallery items + detail rows reveal
      --------------------------------------------------------------------- */
   function caseStudies() {
-    gsap.utils.toArray('.case-panel').forEach((panel) => {
-      gsap.set(panel, { opacity: 0, y: 30 });
+    gsap.utils.toArray('.case-study-item').forEach((item, i) => {
+      gsap.set(item, { autoAlpha: 0, y: 24 });
       ScrollTrigger.create({
-        trigger: panel, start: 'top 90%',
-        onEnter: () => gsap.to(panel, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }),
+        trigger: item, start: 'top 90%',
+        onEnter: () => gsap.to(item, {
+          autoAlpha: 1, y: 0, duration: 0.6, ease: 'power3.out', delay: i * 0.06,
+          onComplete: () => gsap.set(item, { clearProps: 'transform,opacity,visibility' })
+        }),
+        once: true
+      });
+    });
+    gsap.utils.toArray('.case-study-row').forEach((row, i) => {
+      gsap.set(row, { autoAlpha: 0 });
+      ScrollTrigger.create({
+        trigger: row, start: 'top 92%',
+        onEnter: () => gsap.to(row, { autoAlpha: 1, duration: 0.5, ease: 'power2.out', delay: i * 0.04 }),
         once: true
       });
     });
@@ -305,22 +320,6 @@ window.PRAnimations = (function () {
   }
 
   /* ---------------------------------------------------------------------
-     PARTNER BUBBLES — gentle continuous float, like held balloons
-     --------------------------------------------------------------------- */
-  function partnerFloat() {
-    if (reduced) return;
-    document.querySelectorAll('.partner-bubble').forEach((bubble, i) => {
-      gsap.to(bubble, {
-        y: i % 2 === 0 ? -10 : 10,
-        duration: 2.4 + (i % 3) * 0.4,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true,
-        delay: i * 0.15
-      });
-    });
-  }
-
   /* ---------------------------------------------------------------------
      PUBLIC INIT
      --------------------------------------------------------------------- */
@@ -342,11 +341,10 @@ window.PRAnimations = (function () {
     faqAccordion();
     cardReveals('.testimonial-card');
     cardReveals('.testimonial-chip');
-    cardReveals('.partner-bubble');
-    cardReveals('.team-card');
-    cardReveals('.location-card');
     cardReveals('.stat-card');
-    partnerFloat();
+    cardReveals('.creative-item');
+    cardReveals('.experience-card');
+    cardReveals('.pr-lift-visual');
 
     ScrollTrigger.refresh();
   }

@@ -224,6 +224,40 @@
   }
 
   /* ---------------------------------------------------------------------
+     CAMPAIGN GALLERY LIGHTBOX
+     --------------------------------------------------------------------- */
+  function initLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const closeBtn = document.getElementById('lightbox-close');
+    if (!lightbox || !lightboxImg || !closeBtn) return;
+
+    function open(item) {
+      const img = item.querySelector('img');
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      lightbox.classList.add('is-open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.lightbox-trigger').forEach((item) => {
+      item.addEventListener('click', () => open(item));
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(item); }
+      });
+    });
+    closeBtn.addEventListener('click', close);
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  }
+
+  /* ---------------------------------------------------------------------
      BOOT
      --------------------------------------------------------------------- */
   function boot() {
@@ -232,6 +266,7 @@
     initMobileMenu();
     initContactForm();
     initScrollspy();
+    initLightbox();
 
     if (window.PRAnimations) window.PRAnimations.init();
 
