@@ -1,279 +1,606 @@
 /* ==========================================================================
-   PR BY SPILIFT — MAIN
-   Boot sequence: loader -> Lenis smooth scroll -> ScrollTrigger sync ->
-   nav behavior -> mobile menu -> contact form validation.
+   PR BY SPILIFT — MAIN JS
+   Loader → Lenis → Navigation → Mobile Menu → Forms → Scrollspy → Lightbox
    ========================================================================== */
 
 (function () {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  'use strict';
 
-  /* ---------------------------------------------------------------------
+  const reduced = window.matchMedia(
+    '(prefers-reduced-motion: reduce)'
+  ).matches;
+
+  /* ========================================================================
      LOADER
-     Target duration ~0.8–1.5s per brief. Runs the progress bar, then
-     reveals the page and hands off to PRAnimations.init().
-     --------------------------------------------------------------------- */
+     ======================================================================== */
+
   function runLoader(done) {
-    const loader = document.getElementById('loader');
-    if (!loader) return done();
+  const loader = document.getElementById('loader');
 
-    if (reduced) {
-      loader.style.display = 'none';
-      return done();
-    }
-
-    document.body.style.overflow = 'hidden';
-
-    const tl = gsap.timeline({
-      onComplete: () => {
-        loader.style.display = 'none';
-        document.body.style.overflow = '';
-        done();
-      }
-    });
-
-    tl.to('.loader-bar span', { width: '100%', duration: 0.9, ease: 'power2.inOut' }, 0)
-      .to('.loader-line', { opacity: 1, duration: 0.01 }, 0)
-      .to(loader, { yPercent: -100, duration: 0.6, ease: 'power4.inOut' }, 0.95);
+  if (!loader) {
+    done();
+    return;
   }
 
-  /* ---------------------------------------------------------------------
-     LENIS SMOOTH SCROLL + ScrollTrigger sync
-     --------------------------------------------------------------------- */
+  // Respect reduced-motion preference
+  if (reduced) {
+    loader.style.display = 'none';
+    done();
+    return;
+  }
+
+  document.body.style.overflow = 'hidden';
+
+  // Start loader animation
+  loader.classList.add('is-loading');
+
+  // Give the loader enough time to feel intentional,
+  // but keep it fast.
+  setTimeout(() => {
+    loader.classList.add('is-done');
+
+    // Restore page scrolling
+    document.body.style.overflow = '';
+
+    // Initialize the website
+    setTimeout(() => {
+      loader.style.display = 'none';
+      done();
+    }, 550);
+
+  }, 1100);
+}
+
+
+  /* ========================================================================
+     LENIS SMOOTH SCROLL
+     ======================================================================== */
+
   function initLenis() {
-    if (reduced || typeof Lenis === 'undefined') return null;
+
+    if (
+      reduced ||
+      typeof Lenis === 'undefined' ||
+      typeof gsap === 'undefined' ||
+      typeof ScrollTrigger === 'undefined'
+    ) {
+      return null;
+    }
 
     const lenis = new Lenis({
       duration: 1.1,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: function (t) {
+        return Math.min(
+          1,
+          1.001 - Math.pow(2, -10 * t)
+        );
+      },
       smoothWheel: true,
       touchMultiplier: 1.2
     });
 
-    lenis.on('scroll', ScrollTrigger.update);
+    lenis.on('scroll', function () {
+      ScrollTrigger.update();
+    });
 
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    gsap.ticker.add(function (time) {
+      lenis.raf(time * 1000);
+    });
+
     gsap.ticker.lagSmoothing(0);
 
     return lenis;
   }
 
-  /* ---------------------------------------------------------------------
-     NAVIGATION — hide on scroll down, reveal on scroll up, compress
-     --------------------------------------------------------------------- */
+
+  /* ========================================================================
+     NAVIGATION
+     
+     IMPORTANT:
+     - Navbar stays fixed
+     - Navbar hides only after scrolling down
+     - Navbar returns when scrolling up
+     - Navbar NEVER gets permanently hidden
+     ======================================================================== */
+
   function initNavBehavior() {
-    const nav = document.getElementById('nav');
-    if (!nav) return;
-    let lastY = window.scrollY;
-    const hideThreshold = () => window.innerHeight * 0.9; // don't hide until past the hero
-    const jitterGuard = 6; // ignore sub-pixel/momentum noise so nav doesn't flicker
+  const nav = document.getElementById('nav');
 
-    ScrollTrigger.create({
-      start: 0,
-      end: 'max',
-      onUpdate: (self) => {
-        const y = window.scrollY;
-        const delta = y - lastY;
-        nav.classList.toggle('nav--scrolled', y > 40);
+  if (!nav) return;
 
-        if (Math.abs(delta) > jitterGuard) {
-          if (delta > 0 && y > hideThreshold()) {
-            nav.classList.add('nav--hidden');
-          } else if (delta < 0) {
-            nav.classList.remove('nav--hidden');
-          }
-          lastY = y;
-        }
+  let lastScrollY = window.scrollY;
+  let ticking = false;
 
-        // Always show near the very top, regardless of direction noise
-        if (y < 40) nav.classList.remove('nav--hidden');
-      }
-    });
+  const showNav = () => {
+    nav.classList.remove('nav--hidden');
+  };
+
+  const hideNav = () => {
+    // Never hide while mobile menu is open
+    if (nav.classList.contains('menu-open')) return;
+
+    nav.classList.add('nav--hidden');
+  };
+
+  function updateNav() {
+    const currentScrollY = window.scrollY;
+
+    // At the very top — always show
+    if (currentScrollY <= 20) {
+      showNav();
+      nav.classList.remove('nav--scrolled');
+      lastScrollY = currentScrollY;
+      ticking = false;
+      return;
+    }
+
+    // Add compact/scrolled style
+    nav.classList.add('nav--scrolled');
+
+    const difference = currentScrollY - lastScrollY;
+
+    // Ignore tiny movements
+    if (Math.abs(difference) < 6) {
+      ticking = false;
+      return;
+    }
+
+    // Scrolling DOWN
+    if (difference > 0) {
+      hideNav();
+    }
+
+    // Scrolling UP
+    else {
+      showNav();
+    }
+
+    lastScrollY = currentScrollY;
+    ticking = false;
   }
 
-  /* ---------------------------------------------------------------------
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateNav);
+        ticking = true;
+      }
+    },
+    { passive: true }
+  );
+
+  // Initial state
+  showNav();
+}
+  /* ========================================================================
      MOBILE MENU
-     --------------------------------------------------------------------- */
+     ======================================================================== */
+
   function initMobileMenu() {
+
     const btn = document.getElementById('hamburger');
     const menu = document.getElementById('mobile-menu');
+    const nav = document.getElementById('nav');
+
     if (!btn || !menu) return;
 
     let open = false;
 
-    function toggle() {
-      open = !open;
-      btn.setAttribute('aria-expanded', String(open));
-      menu.classList.toggle('is-open', open);
-      document.body.style.overflow = open ? 'hidden' : '';
-    }
+    function openMenu() {
 
-    btn.addEventListener('click', toggle);
-    menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
-      if (open) toggle();
-    }));
+      open = true;
 
-    // Close on escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && open) toggle();
-    });
-  }
+      btn.setAttribute('aria-expanded', 'true');
+      menu.classList.add('is-open');
 
-  /* ---------------------------------------------------------------------
-     CONTACT FORM
-     No backend is connected yet. To go live, pick ONE:
-
-     1) FORMSPREE
-        <form action="https://formspree.io/f/yourFormId" method="POST">
-        Remove the preventDefault() below and let it submit natively,
-        or fetch() the action URL with FormData.
-
-     2) EMAILJS
-        Include the EmailJS SDK, then inside handleSubmit():
-        emailjs.sendForm('service_id','template_id', form)
-
-     3) NETLIFY FORMS
-        Add data-netlify="true" and a hidden <input name="form-name">
-        matching the form's name attribute; Netlify handles the rest.
-
-     4) CUSTOM BACKEND
-        fetch('/api/enquiry', { method:'POST', body: JSON.stringify(data) })
-
-     Until one of these is wired up, the form only validates client-side
-     and shows a status message — it does not claim to send anything.
-     --------------------------------------------------------------------- */
-  function initContactForm() {
-    const form = document.getElementById('contact-form');
-    if (!form) return;
-    const status = document.getElementById('form-status');
-
-    const rules = {
-      name: (v) => v.trim().length >= 2 || 'Please enter your name.',
-      phone: (v) => /^[0-9+\-\s()]{7,}$/.test(v.trim()) || 'Please enter a valid phone number.',
-      email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) || 'Please enter a valid email address.',
-      need: (v) => v.trim().length >= 10 || 'Tell us a little more (10+ characters).'
-    };
-
-    function validateField(input) {
-      const rule = rules[input.name];
-      const field = input.closest('.field');
-      const errorEl = field.querySelector('.field-error');
-      if (!rule) return true;
-
-      const result = rule(input.value);
-      if (result === true) {
-        field.classList.remove('has-error');
-        errorEl.textContent = '';
-        return true;
-      } else {
-        field.classList.add('has-error');
-        errorEl.textContent = result;
-        return false;
-      }
-    }
-
-    form.querySelectorAll('input, textarea').forEach((input) => {
-      input.addEventListener('blur', () => validateField(input));
-    });
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      const fields = form.querySelectorAll('input[required], textarea[required]');
-      let valid = true;
-      fields.forEach((f) => { if (!validateField(f)) valid = false; });
-
-      if (!valid) {
-        status.textContent = 'Please fix the highlighted fields.';
-        status.className = 'form-status is-error';
-        return;
+      if (nav) {
+        nav.classList.add('menu-open');
+        nav.classList.remove('nav--hidden');
       }
 
-      // No backend is connected — be honest about that instead of faking success.
-      status.textContent = 'This form isn\u2019t connected to a backend yet. Hook up Formspree, EmailJS, Netlify Forms or a custom API to send enquiries \u2014 see the comment in js/main.js.';
-      status.className = 'form-status is-error';
-    });
-  }
-
-  /* ---------------------------------------------------------------------
-     SCROLLSPY — highlight the nav link for the section in view
-     --------------------------------------------------------------------- */
-  function initScrollspy() {
-    const links = document.querySelectorAll('.nav-links a[href^="#"]');
-    if (!links.length) return;
-
-    const map = new Map();
-    links.forEach((link) => {
-      const id = link.getAttribute('href').slice(1);
-      const section = document.getElementById(id);
-      if (section) map.set(section, link);
-    });
-    if (!map.size) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        const link = map.get(entry.target);
-        if (!link) return;
-        if (entry.isIntersecting) {
-          links.forEach((l) => l.classList.remove('is-active'));
-          link.classList.add('is-active');
-        }
-      });
-    }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
-
-    map.forEach((_, section) => observer.observe(section));
-  }
-
-  /* ---------------------------------------------------------------------
-     CAMPAIGN GALLERY LIGHTBOX
-     --------------------------------------------------------------------- */
-  function initLightbox() {
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightbox-img');
-    const closeBtn = document.getElementById('lightbox-close');
-    if (!lightbox || !lightboxImg || !closeBtn) return;
-
-    function open(item) {
-      const img = item.querySelector('img');
-      lightboxImg.src = img.src;
-      lightboxImg.alt = img.alt;
-      lightbox.classList.add('is-open');
-      lightbox.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
     }
-    function close() {
-      lightbox.classList.remove('is-open');
-      lightbox.setAttribute('aria-hidden', 'true');
+
+    function closeMenu() {
+
+      open = false;
+
+      btn.setAttribute('aria-expanded', 'false');
+      menu.classList.remove('is-open');
+
+      if (nav) {
+        nav.classList.remove('menu-open');
+        nav.classList.remove('nav--hidden');
+      }
+
       document.body.style.overflow = '';
     }
 
-    document.querySelectorAll('.lightbox-trigger').forEach((item) => {
-      item.addEventListener('click', () => open(item));
-      item.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(item); }
-      });
+    btn.addEventListener('click', function () {
+
+      if (open) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+
     });
-    closeBtn.addEventListener('click', close);
-    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+    menu.querySelectorAll('a').forEach(function (link) {
+
+      link.addEventListener('click', function () {
+        closeMenu();
+      });
+
+    });
+
+    document.addEventListener('keydown', function (e) {
+
+      if (e.key === 'Escape' && open) {
+        closeMenu();
+      }
+
+    });
+
   }
 
-  /* ---------------------------------------------------------------------
+
+  /* ========================================================================
+     CONTACT FORM
+     ======================================================================== */
+
+  function initContactForm() {
+
+    const form = document.getElementById('contact-form');
+
+    if (!form) return;
+
+    const status = document.getElementById('form-status');
+
+    const rules = {
+
+      name: function (value) {
+        return value.trim().length >= 2 ||
+          'Please enter your name.';
+      },
+
+      phone: function (value) {
+        return /^[0-9+\-\s()]{7,}$/.test(value.trim()) ||
+          'Please enter a valid phone number.';
+      },
+
+      email: function (value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ||
+          'Please enter a valid email address.';
+      },
+
+      need: function (value) {
+        return value.trim().length >= 10 ||
+          'Tell us a little more (10+ characters).';
+      }
+
+    };
+
+
+    function validateField(input) {
+
+      const rule = rules[input.name];
+
+      if (!rule) return true;
+
+      const field = input.closest('.field');
+
+      if (!field) return true;
+
+      const errorEl = field.querySelector('.field-error');
+
+      const result = rule(input.value);
+
+      if (result === true) {
+
+        field.classList.remove('has-error');
+
+        if (errorEl) {
+          errorEl.textContent = '';
+        }
+
+        return true;
+
+      } else {
+
+        field.classList.add('has-error');
+
+        if (errorEl) {
+          errorEl.textContent = result;
+        }
+
+        return false;
+      }
+
+    }
+
+
+    form.querySelectorAll('input, textarea').forEach(function (input) {
+
+      input.addEventListener('blur', function () {
+        validateField(input);
+      });
+
+    });
+
+
+    form.addEventListener('submit', function (e) {
+
+      e.preventDefault();
+
+      const fields = form.querySelectorAll(
+        'input[required], textarea[required]'
+      );
+
+      let valid = true;
+
+      fields.forEach(function (field) {
+
+        if (!validateField(field)) {
+          valid = false;
+        }
+
+      });
+
+
+      if (!valid) {
+
+        if (status) {
+          status.textContent =
+            'Please fix the highlighted fields.';
+
+          status.className =
+            'form-status is-error';
+        }
+
+        return;
+      }
+
+
+      if (status) {
+
+        status.textContent =
+          'This form is not connected to a backend yet.';
+
+        status.className =
+          'form-status is-error';
+
+      }
+
+    });
+
+  }
+
+
+  /* ========================================================================
+     SCROLLSPY
+     ======================================================================== */
+
+  function initScrollspy() {
+
+    const links = document.querySelectorAll(
+      '.nav-links a[href^="#"]'
+    );
+
+    if (!links.length) return;
+
+    const map = new Map();
+
+    links.forEach(function (link) {
+
+      const id = link
+        .getAttribute('href')
+        .slice(1);
+
+      const section =
+        document.getElementById(id);
+
+      if (section) {
+        map.set(section, link);
+      }
+
+    });
+
+    if (!map.size) return;
+
+    const observer =
+      new IntersectionObserver(
+
+        function (entries) {
+
+          entries.forEach(function (entry) {
+
+            const link =
+              map.get(entry.target);
+
+            if (!link) return;
+
+            if (entry.isIntersecting) {
+
+              links.forEach(function (item) {
+                item.classList.remove('is-active');
+              });
+
+              link.classList.add('is-active');
+
+            }
+
+          });
+
+        },
+
+        {
+          rootMargin: '-45% 0px -50% 0px',
+          threshold: 0
+        }
+
+      );
+
+
+    map.forEach(function (_, section) {
+      observer.observe(section);
+    });
+
+  }
+
+
+  /* ========================================================================
+     LIGHTBOX
+     ======================================================================== */
+
+  function initLightbox() {
+
+    const lightbox =
+      document.getElementById('lightbox');
+
+    const lightboxImg =
+      document.getElementById('lightbox-img');
+
+    const closeBtn =
+      document.getElementById('lightbox-close');
+
+    if (!lightbox || !lightboxImg || !closeBtn) {
+      return;
+    }
+
+
+    function open(item) {
+
+      const img = item.querySelector('img');
+
+      if (!img) return;
+
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt || '';
+
+      lightbox.classList.add('is-open');
+
+      lightbox.setAttribute(
+        'aria-hidden',
+        'false'
+      );
+
+      document.body.style.overflow = 'hidden';
+
+    }
+
+
+    function close() {
+
+      lightbox.classList.remove('is-open');
+
+      lightbox.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      document.body.style.overflow = '';
+
+    }
+
+
+    document
+      .querySelectorAll('.lightbox-trigger')
+      .forEach(function (item) {
+
+        item.addEventListener('click', function () {
+          open(item);
+        });
+
+        item.addEventListener('keydown', function (e) {
+
+          if (
+            e.key === 'Enter' ||
+            e.key === ' '
+          ) {
+
+            e.preventDefault();
+            open(item);
+
+          }
+
+        });
+
+      });
+
+
+    closeBtn.addEventListener('click', close);
+
+    lightbox.addEventListener('click', function (e) {
+
+      if (e.target === lightbox) {
+        close();
+      }
+
+    });
+
+
+    document.addEventListener('keydown', function (e) {
+
+      if (e.key === 'Escape') {
+        close();
+      }
+
+    });
+
+  }
+
+
+  /* ========================================================================
      BOOT
-     --------------------------------------------------------------------- */
+     ======================================================================== */
+
   function boot() {
-    const lenis = initLenis();
+
+    initLenis();
+
     initNavBehavior();
+
     initMobileMenu();
+
     initContactForm();
+
     initScrollspy();
+
     initLightbox();
 
-    if (window.PRAnimations) window.PRAnimations.init();
+//temorary fix for animations not working on page load
+    //if (window.PRAnimations) {
+    //  window.PRAnimations.init();
+    //}
 
-    window.addEventListener('resize', () => ScrollTrigger.refresh());
+
+    if (
+      typeof ScrollTrigger !== 'undefined'
+    ) {
+
+      window.addEventListener(
+        'resize',
+        function () {
+          ScrollTrigger.refresh();
+        }
+      );
+
+    }
+
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    runLoader(boot);
-  });
+
+  /* ========================================================================
+     START
+     ======================================================================== */
+
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      runLoader(boot);
+    }
+  );
+
 })();
