@@ -945,6 +945,11 @@ span:nth-child(2){
    MOBILE NAVIGATION — FINAL FIX
    ========================================================= */
 
+/* Hide mobile menu on desktop */
+.mobile-menu {
+  display: none;
+}
+
 @media (max-width: 768px) {
 
   /* ---------------- NAV BAR ---------------- */
